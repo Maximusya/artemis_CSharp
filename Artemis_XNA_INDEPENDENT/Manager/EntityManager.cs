@@ -267,7 +267,7 @@ namespace Artemis.Manager
             Debug.Assert(entity != null, "Entity must not be null.");
             Debug.Assert(component != null, "Component must not be null.");
 
-            ComponentType type = ComponentTypeManager.GetTypeFor(component.GetType());
+            ComponentType type = ComponentType.OfType(component.GetType());
 
             this.AddComponent(entity, component, type);
         }
@@ -285,7 +285,7 @@ namespace Artemis.Manager
             Debug.Assert(entity != null, "Entity must not be null.");
             Debug.Assert(component != null, "Component must not be null.");
 
-            ComponentType type = ComponentTypeManager.GetTypeFor<T>();
+            ComponentType type = ComponentType.OfType<T>();
 
             this.AddComponent(entity, component, type);
         }
@@ -361,7 +361,7 @@ namespace Artemis.Manager
         /// <param name="entity">The entity for which you are removing the component.</param>
         internal void RemoveComponent<T>(Entity entity) where T : IComponent
         {
-            this.RemoveComponent(entity, ComponentType<T>.CType);
+            this.RemoveComponent(entity, ComponentType.OfType<T>());
         }
 
         /// <summary>Removes the given component type from the given entity.</summary>
@@ -411,7 +411,7 @@ namespace Artemis.Manager
                 }
             }
 
-			this.Refresh(entity);
+            this.Refresh(entity);
         }
 
         /// <summary>Entities the manager removed component event.</summary>

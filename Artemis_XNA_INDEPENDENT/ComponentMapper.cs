@@ -64,7 +64,7 @@ namespace Artemis
             Debug.Assert(entityWorld != null, "Entity world must not be null.");
 
             this.entityManager = entityWorld.EntityManager;
-            this.componentType = ComponentTypeManager.GetTypeFor<T>();
+            this.componentType = ComponentType.OfType<T>();
         }
 
         /// <summary>Gets the component mapper for.</summary>

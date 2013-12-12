@@ -139,7 +139,7 @@ namespace Artemis
         {
             Debug.Assert(types != null, "Types must not be null.");
 
-            foreach (ComponentType componentType in types.Select(ComponentTypeManager.GetTypeFor))
+            foreach (ComponentType componentType in types.Select(ComponentType.OfType))
             {
                 this.ContainsTypesMap |= componentType.Bit;
             }
@@ -154,7 +154,7 @@ namespace Artemis
         {
             Debug.Assert(types != null, "Types must not be null.");
 
-            foreach (ComponentType componentType in types.Select(ComponentTypeManager.GetTypeFor))
+            foreach (ComponentType componentType in types.Select(ComponentType.OfType))
             {
                 this.ExcludeTypesMap |= componentType.Bit;
             }
@@ -169,7 +169,7 @@ namespace Artemis
         {
             Debug.Assert(types != null, "Types must not be null.");
 
-            foreach (ComponentType componentType in types.Select(ComponentTypeManager.GetTypeFor))
+            foreach (ComponentType componentType in types.Select(ComponentType.OfType))
             {
                 this.OneTypesMap |= componentType.Bit;
             }
@@ -200,7 +200,7 @@ namespace Artemis
             if (typeBits != 0)
             {
                 builder.AppendLine(headerMessage);
-                foreach (Type type in ComponentTypeManager.GetTypesFromBits(typeBits))
+                foreach (Type type in ComponentType.GetTypesFromBits(typeBits))
                 {
                     builder.Append(", ");
                     builder.AppendLine(type.Name);

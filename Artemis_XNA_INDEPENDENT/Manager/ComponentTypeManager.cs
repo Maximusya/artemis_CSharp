@@ -58,6 +58,18 @@ namespace Artemis.Manager
         /// <summary>The component types.</summary>
         private static readonly Dictionary<Type, ComponentType> ComponentTypes = new Dictionary<Type, ComponentType>();
 
+        /// <summary>The bit.</summary>
+        private static BigInteger NextAvailableBit;
+
+        /// <summary>The id.</summary>
+        private static int NextAvailableId;
+
+        static ComponentTypeManager()
+        {
+            NextAvailableBit = 1;
+            NextAvailableId = 0;
+        }
+
         /// <summary>Gets the bit.</summary>
         /// <typeparam name="T">The <see langword="Type"/> T.</typeparam>
         /// <returns>The bit flag register.</returns>
@@ -96,7 +108,13 @@ namespace Artemis.Manager
             ComponentType result;
             if (!ComponentTypes.TryGetValue(component, out result))
             {
-                result = new ComponentType();
+                int typeId = NextAvailableId;
+                BigInteger typeBit = NextAvailableBit;
+
+                NextAvailableId++;
+                NextAvailableBit <<= 1;
+
+                result = new ComponentType(typeId, typeBit);
                 ComponentTypes.Add(component, result);
             }
 
@@ -115,14 +133,6 @@ namespace Artemis.Manager
                     yield return keyValuePair.Key;
                 }
             }            
-        }
-
-        /// <summary>Sets the type for specified ComponentType T.</summary>
-        /// <typeparam name="T">The <see langword="Type" /> of T.</typeparam>
-        /// <param name="type">The type.</param>
-        internal static void SetTypeFor<T>(ComponentType type)
-        {
-            ComponentTypes.Add(typeof(T), type);
         }
     }
 }

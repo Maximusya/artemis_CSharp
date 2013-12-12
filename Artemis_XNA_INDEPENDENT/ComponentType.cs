@@ -38,6 +38,8 @@ namespace Artemis
 {
     #region Using statements
 
+    using global::System;
+    using global::System.Collections.Generic;
 #if XBOX || WINDOWS_PHONE || PORTABLE || FORCEINT32
     using BigInteger = global::System.Int32;
 #else
@@ -51,24 +53,11 @@ namespace Artemis
     /// <summary>Represents a Component Type.</summary>
     public sealed class ComponentType 
     {
-        /// <summary>The bit.</summary>
-        private static BigInteger bit;
-
-        /// <summary>The id.</summary>
-        private static int id;
-
-        /// <summary>Initializes static members of the <see cref="ComponentType"/> class.</summary>
-        static ComponentType()
-        {
-            bit = 1;
-            id = 0;
-        }
-
         /// <summary>Initializes a new instance of the <see cref="ComponentType"/> class.</summary>
-        internal ComponentType()
+        internal ComponentType(int id, BigInteger bit)
         {
-            this.Id = NextId;
-            this.Bit = NextBit;
+            this.Id = id;
+            this.Bit = bit;
         }
 
         /// <summary>Gets the bit index that represents this type of component.</summary>
@@ -79,43 +68,34 @@ namespace Artemis
         /// <value>The bit.</value>
         public BigInteger Bit { get; private set; }
 
-        /// <summary>Gets the next id.</summary>
-        /// <value>The next id.</value>
-        internal static int NextId
+        internal static ComponentType OfType(global::System.Type type)
         {
-            get { return id++; }
+            return ComponentTypeManager.GetTypeFor(type);
         }
 
-        /// <summary>Gets the next bit.</summary>
-        /// <value>The next bit.</value>
-        internal static BigInteger NextBit
+        internal static ComponentType OfType<T>() where T : IComponent
         {
-            get
+            return ComponentTypeCache<T>.CType;
+        }
+
+        internal static IEnumerable<Type> GetTypesFromBits(BigInteger bits)
+        {
+            return ComponentTypeManager.GetTypesFromBits(bits);
+        }
+
+        /// <summary>The component type cache class.</summary>
+        /// <typeparam name="T">The Type T.</typeparam>
+        private static class ComponentTypeCache<T> where T : IComponent
+        {
+            /// <summary>Initializes static members of the <see cref="ComponentTypeCache{T}"/> class.</summary>
+            static ComponentTypeCache()
             {
-                BigInteger value = bit;
-                bit <<= 1;
-                return value;
+                CType = ComponentTypeManager.GetTypeFor<T>();
             }
-        }
-    }
 
-    /// <summary>The component type class.</summary>
-    /// <typeparam name="T">The Type T.</typeparam>
-    internal static class ComponentType<T> where T : IComponent
-    {
-        /// <summary>Initializes static members of the <see cref="ComponentType{T}"/> class.</summary>
-        static ComponentType()
-        {
-            CType = ComponentTypeManager.GetTypeFor<T>();
-            if (CType == null)
-            {
-                CType = new ComponentType();
-                ComponentTypeManager.SetTypeFor<T>(CType);
-            }
+            /// <summary>Gets the type of the C.</summary>
+            /// <value>The type of the C.</value>
+            public static ComponentType CType { get; private set; }
         }
-
-        /// <summary>Gets the type of the C.</summary>
-        /// <value>The type of the C.</value>
-        public static ComponentType CType { get; private set; }
     }
 }

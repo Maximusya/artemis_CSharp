@@ -266,7 +266,7 @@ namespace Artemis
         /// <returns>component that matches, or null if none is found.</returns>
         public T GetComponent<T>() where T : IComponent
         {
-            return (T)this.entityManager.GetComponent(this, ComponentType<T>.CType);
+            return (T)this.entityManager.GetComponent(this, ComponentType.OfType<T>());
         }
 
         /// <summary>Determines whether this instance has a specific component.</summary>
@@ -274,7 +274,7 @@ namespace Artemis
         /// <returns><see langword="true" /> if this instance has a specific component; otherwise, <see langword="false" />.</returns>
         public bool HasComponent<T>() where T : IComponent
         {
-            return !object.Equals((T)this.entityManager.GetComponent(this, ComponentType<T>.CType), default(T));
+            return !object.Equals((T)this.entityManager.GetComponent(this, ComponentType.OfType<T>()), default(T));
         }
 
         /// <summary><para>Refreshes this instance.</para>
@@ -300,7 +300,7 @@ namespace Artemis
         /// <typeparam name="T">Component Type.</typeparam>
         public void RemoveComponent<T>() where T : IComponent
         {
-            this.entityManager.RemoveComponent(this, ComponentTypeManager.GetTypeFor<T>());
+            this.entityManager.RemoveComponent(this, ComponentType.OfType<T>());
         }
 
         /// <summary><para>Removes the component.</para>

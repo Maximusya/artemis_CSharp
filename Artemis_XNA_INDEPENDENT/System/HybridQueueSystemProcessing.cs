@@ -67,7 +67,7 @@ namespace Artemis.System
             this.compTypes = new List<ComponentType>();
             foreach (Type type in this.Types)
             {
-                this.compTypes.Add(ComponentTypeManager.GetTypeFor(type));
+                this.compTypes.Add(ComponentType.OfType(type));
             }
         }
 
