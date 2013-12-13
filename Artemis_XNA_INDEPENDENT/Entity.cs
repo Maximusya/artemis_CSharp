@@ -53,7 +53,7 @@ namespace Artemis
     #endregion
 
     /// <summary>Basic unity of this entity system.</summary>
-    public sealed class Entity
+    public sealed partial class Entity
     {
         /// <summary>The entity manager.</summary>
         private readonly EntityManager entityManager;
