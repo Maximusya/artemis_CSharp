@@ -41,11 +41,16 @@ namespace Artemis.Manager
     using global::System;
     using global::System.Collections.Generic;
     using global::System.Diagnostics;
+    using global::System.Linq;
+    using global::System.Reflection;
 #if !XBOX && !WINDOWS_PHONE  && !PORTABLE
     using global::System.Numerics;
 #endif
 #if XBOX || WINDOWS_PHONE || PORTABLE || FORCEINT32
     using BigInteger = global::System.Int32;
+#endif
+#if METRO
+    using Artemis.Attributes;
 #endif
 
     using Artemis.Interface;
@@ -108,6 +113,13 @@ namespace Artemis.Manager
             ComponentType result;
             if (!ComponentTypes.TryGetValue(component, out result))
             {
+#if XBOX || WINDOWS_PHONE || PORTABLE || FORCEINT32
+                if (NextAvailableId == 32)
+                {
+                    // nextBit has overflown and is 0 now
+                    throw new InvalidOperationException("Distinct ComponentType limit reached: number of ComponentType types is restricted to 32 in the current Artemis build.");
+                }
+#endif
                 int typeId = NextAvailableId;
                 BigInteger typeBit = NextAvailableBit;
 
@@ -119,6 +131,64 @@ namespace Artemis.Manager
             }
 
             return result;
+        }
+
+        /// <summary><para>Scans assemblies for types implementing <see cref="IComponent"/> interface</para>
+        /// <para>and creates a corresponding Artemis <see cref="ComponentType"/> for each type found.</para>
+        /// </summary>
+        /// <param name="assembliesToScan">The assemblies to scan.</param>
+        public static void Initialize(params Assembly[] assembliesToScan)
+        {
+#if FULLDOTNET || METRO
+            if (assembliesToScan.Length == 0)
+            {
+                assembliesToScan = AppDomain.CurrentDomain.GetAssemblies().ToArray();
+            }
+#endif
+
+            foreach (Assembly assembly in assembliesToScan)
+            {
+#if METRO
+                IEnumerable<Type> types = assembly.ExportedTypes;
+#else
+                IEnumerable<Type> types = assembly.GetTypes();
+#endif
+
+                Initialize(types, ignoreInvalidTypes: true);
+            }
+        }
+
+        /// <summary><para>Scans the types for types implementing <see cref="IComponent"/> interface</para>
+        /// <para>and creates a corresponding Artemis <see cref="ComponentType"/> for each type found.</para>
+        /// </summary>
+        /// <param name="types">Types to scan</param>
+        /// <param name="ignoreInvalidTypes">If set to <see langword="true" />, will not throw Exception</param>
+        public static void Initialize(IEnumerable<Type> types, bool ignoreInvalidTypes = false)
+        {
+            foreach (Type type in types)
+            {
+#if METRO
+                if (typeof(IComponent).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
+                {
+                    if (type.GetTypeInfo().IsInterface)
+                        continue;
+#else
+                if (typeof(IComponent).IsAssignableFrom(type))
+                {
+                    if (type.IsInterface)
+                        continue;
+#endif
+
+                    if (type == typeof(ComponentPoolable))
+                        continue;
+
+                    GetTypeFor(type);
+                }
+                else if (!ignoreInvalidTypes)
+                {
+                    throw new ArgumentException(String.Format("Type {0} does not implement {1} interface", type, typeof(IComponent)));
+                }
+            }
         }
 
         /// <summary>Creates an enumerable from a <c>BigIntger</c> which holds type bits.</summary>

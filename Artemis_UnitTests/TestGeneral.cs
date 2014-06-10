@@ -42,13 +42,15 @@ namespace UnitTests
     using global::System.Collections.Generic;
     using global::System.Diagnostics;
     using global::System.Linq;
+    using global::System.Numerics;
+    using global::System.Reflection;
 
     using Artemis;
+    using Artemis.Attributes;
     using Artemis.Interface;
     using Artemis.Manager;
     using Artemis.System;
     using Artemis.Utils;
-
 #if METRO
     using Microsoft.VisualStudio.TestPlatform.UnitTestFramework;
 #elif MONO
@@ -786,7 +788,7 @@ namespace UnitTests
             TestDerivedComponent derived = new TestDerivedComponent();
             Entity entity = entityWorld.CreateEntity();
 
-            entity.AddComponent(derived);
+            entity.AddComponent(derived as TestBaseComponent);
             Assert.IsNull(entity.GetComponent<TestDerivedComponent>(), "Should be null because the component should be added as if it was a base component");
             Assert.IsNotNull(entity.GetComponent<TestBaseComponent>());
             Assert.IsTrue(entity.GetComponent<TestBaseComponent>().IsDerived());
@@ -799,6 +801,83 @@ namespace UnitTests
             Assert.IsNull(derivedMapper.Get(entity));
             Assert.IsNotNull(baseMapper.Get(entity));
             Assert.AreEqual(baseMapper.Get(entity), entity.GetComponent<TestBaseComponent>());
+        }
+
+        /// <summary>Tests poolable components</summary>
+#if MONO
+    [Test]
+#else
+    [TestMethod]
+#endif
+        public void TestPoolableComponents()
+        {
+            var entityWorld = new EntityWorld(isSortedEntities: false, processAttributes: true, initializeAll: true) { PoolCleanupDelay = 0 };
+            var pool = (ComponentPool<ComponentPoolable>)entityWorld.GetPool(typeof(TestPowerComponentPoolable));
+
+            Debug.WriteLine("ComponentPool<TestPowerComponentPoolable> is not Null:");
+            Assert.IsNotNull(pool);
+            Debug.WriteLine("OK");
+
+            var poolAttribute = (ArtemisComponentPool) typeof(TestPowerComponentPoolable).GetCustomAttributes(typeof(ArtemisComponentPool), false).Single();
+
+            Assert.AreEqual(poolAttribute.InitialSize, pool.InvalidCount, "Initially component pool should contain only invalid items");
+
+            int expectedPower = default(int);
+
+            var addedComponentEventHandler = new AddedComponentHandler((e, c) =>
+            {
+                Debug.WriteLine("TestPowerComponentPoolable added: ");
+                Assert.AreEqual(typeof (TestPowerComponentPoolable), c.GetType());
+                Debug.WriteLine("OK");
+                Debug.WriteLine("TestPowerComponentPoolable.Power == {0}:", expectedPower);
+                Assert.AreEqual(expectedPower, ((TestPowerComponentPoolable) c).Power);
+                Debug.WriteLine("OK");
+            });
+
+            entityWorld.EntityManager.AddedComponentEvent += addedComponentEventHandler;
+
+            Entity entity = entityWorld.CreateEntity();
+
+            Debug.WriteLine("Adding FRESH uninitialized TestPowerComponentPoolable from pool (expected power = {0})", default(int));
+            TestPowerComponentPoolable testPowerComponent = entity.AddComponentFromPool<TestPowerComponentPoolable>();
+
+            Assert.AreEqual(expectedPower, testPowerComponent.Power);
+            Assert.AreEqual(expectedPower, entity.GetComponent<TestPowerComponentPoolable>().Power);
+
+            entity.RemoveComponent<TestPowerComponentPoolable>();
+            Assert.IsFalse(entity.HasComponent<TestPowerComponentPoolable>());
+
+            expectedPower = 100;
+            Debug.WriteLine("Adding initialized TestPowerComponentPoolable from pool (expected power = {0})", expectedPower);
+            entity.AddComponentFromPool<TestPowerComponentPoolable>(c => c.Power = expectedPower);
+
+            Assert.AreEqual(expectedPower, entity.GetComponent<TestPowerComponentPoolable>().Power);
+
+            entity.RemoveComponent<TestPowerComponentPoolable>();
+            Assert.IsFalse(entity.HasComponent<TestPowerComponentPoolable>());
+
+            entityWorld.EntityManager.AddedComponentEvent -= addedComponentEventHandler;
+
+            Debug.WriteLine("Causing ComponentPool<TestPowerComponentPoolable> to fill up to maximum capacity...");	
+
+            while (pool.InvalidCount > 0)
+            {
+                entity.AddComponentFromPool<TestPowerComponentPoolable>(c => c.Power = expectedPower);
+                entity.RemoveComponent<TestPowerComponentPoolable>();
+            }
+
+            Debug.WriteLine("Causing ComponentPool<TestPowerComponentPoolable> cleanup...");
+            entityWorld.Update();
+            Assert.AreEqual(poolAttribute.InitialSize, pool.InvalidCount, "Cleaned up component pool should contain only invalid items");
+            Debug.WriteLine("OK");
+
+            entityWorld.EntityManager.AddedComponentEvent += addedComponentEventHandler;
+
+            Debug.WriteLine("Adding USED uninitialized TestPowerComponentPoolable from pool (expected power = {0})", expectedPower);
+            testPowerComponent = entity.AddComponentFromPool<TestPowerComponentPoolable>();
+
+            Assert.AreEqual(expectedPower, testPowerComponent.Power);
+            Assert.AreEqual(expectedPower, entity.GetComponent<TestPowerComponentPoolable>().Power);
         }
         
         /// <summary>Tests removing components</summary>
@@ -867,6 +946,224 @@ namespace UnitTests
         private static void RemovedEntity(Entity entity)
         {
             Debug.WriteLine("The entity {0} was removed successfully.", entity.UniqueId);
+        }
+
+        /// <summary>Tests initializing ComponentTypes.</summary>
+#if MONO
+    [Test]
+#else
+        [TestMethod]
+#endif
+        public void TestInitializeComponentTypes()
+        {
+            FieldInfo field = typeof(ComponentTypeManager).GetField("ComponentTypes", BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(field, "ComponentTypeManager.ComponentTypes field has not been found");
+            Assert.IsTrue(field.GetValue(null).GetType() == typeof(Dictionary<Type, ComponentType>), "ComponentTypes container is expected to be of type Dictionary<Type, ComponentType>");
+
+            // Debug.WriteLine("Resetting ComponentTypeManager.ComponentTypes...");
+            // field.SetValue(null, new Dictionary<Type, ComponentType>());
+
+            var componentTypes = (Dictionary<Type, ComponentType>)field.GetValue(null);
+
+            Assert.IsNotNull(componentTypes, "Component Types dictionary must not be null");
+            // Assert.IsTrue(componentTypes.Count == 0, "Initial Component Types dictionary is expected to be empty.");
+            // Debug.WriteLine("OK");
+
+            Debug.WriteLine("Initializing specific Component types...");
+            ComponentTypeManager.Initialize(new List<Type>
+            {
+                typeof(TestBaseComponent),
+                typeof(TestDerivedComponent),
+                typeof(TestHealthComponent),
+                typeof(TestPowerComponent),
+                typeof(TestPowerComponentPoolable),
+                typeof(IComponent), // should be filtered out
+                typeof(ComponentPoolable), // should be filtered out
+            });
+            Debug.WriteLine("OK");
+
+            Assert.IsNotNull(componentTypes, "Initialized Component Types dictionary must not be null");
+
+            // NOTE: list of initialized types may change if you change existing Components
+
+            var expectedTypes = new List<Type>
+            {
+                typeof(TestBaseComponent),
+                typeof(TestDerivedComponent),
+                typeof(TestHealthComponent),
+                typeof(TestPowerComponent),
+                typeof(TestPowerComponentPoolable)
+            };
+
+            Debug.WriteLine("Checking initialized Component types...");
+
+            // Assert.AreEqual(expectedTypes.Count, componentTypes.Count, "Expected and actual Component Types count do not match.");
+
+            foreach (var expectedType in expectedTypes)
+            {
+                Assert.IsTrue(componentTypes.ContainsKey(expectedType), "ComponentTypes is expected to contain {0}", expectedType);
+            }
+
+            Debug.WriteLine("OK");
+        }
+
+        /// <summary>Tests initializing ComponentTypes from assemblies.</summary>
+#if MONO
+    [Test]
+#else
+    [TestMethod]
+#endif
+        public void TestInitializeComponentTypesFromAssemblies()
+        {
+            FieldInfo field = typeof(ComponentTypeManager).GetField("ComponentTypes", BindingFlags.Static | BindingFlags.NonPublic);	
+            Assert.IsNotNull(field, "ComponentTypeManager.ComponentTypes field has not been found");
+            Assert.IsTrue(field.GetValue(null).GetType() == typeof(Dictionary<Type, ComponentType>), "ComponentTypes container is expected to be of type Dictionary<Type, ComponentType>");
+
+            // Debug.WriteLine("Resetting ComponentTypeManager.ComponentTypes...");
+            // field.SetValue(null, new Dictionary<Type, ComponentType>());
+
+            var componentTypes = (Dictionary<Type, ComponentType>)field.GetValue(null);
+
+            Assert.IsNotNull(componentTypes, "Component Types dictionary must not be null");
+            // Assert.IsTrue(componentTypes.Count == 0, "Initial Component Types dictionary is expected to be empty.");
+            // Debug.WriteLine("OK");
+
+            Debug.WriteLine("Initializing all Component types...");
+            ComponentTypeManager.Initialize();
+            Debug.WriteLine("OK");
+
+            Assert.IsNotNull(componentTypes, "Initialized Component Types dictionary must not be null");
+        
+            // NOTE: list of initialized types may change if you declare more Component types or remove/change existing
+
+            var expectedTypes = new List<Type>
+            {
+                typeof(TestBaseComponent),
+                typeof(TestDerivedComponent),
+                typeof(TestHealthComponent),
+                typeof(TestPowerComponent),
+                typeof(TestPowerComponentPoolable)
+            };
+
+            Debug.WriteLine("Checking initialized Component types...");
+
+            // Assert.AreEqual(expectedTypes.Count, componentTypes.Count, "Expected and actual Component Types count do not match.");
+
+            foreach (var expectedType in expectedTypes)
+            {
+                Assert.IsTrue(componentTypes.ContainsKey(expectedType), "ComponentTypes is expected to contain {0}", expectedType);
+            }
+
+            Debug.WriteLine("OK");
+        }
+
+        /// <summary>Tests ComponentType bits.</summary>
+#if MONO
+    [Test]
+#else
+    [TestMethod]
+#endif
+        public void TestComponentTypeBit()
+        {
+            bool int32Used = typeof(ComponentType).GetProperty("Bit").PropertyType == typeof(global::System.Int32);
+
+            // Ugly resetting of private static fields in case the type has already been initialized and used
+            typeof(ComponentType).GetField("nextId", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, 0);
+
+            if (int32Used)
+                typeof(ComponentType).GetField("nextBit", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, 1);
+            else
+                typeof(ComponentType).GetField("nextBit", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, (BigInteger)1);
+
+            if (int32Used)
+            {
+                for (int i = 0; i < 32; i++)
+                {
+                    Assert.AreEqual(1 << i, new ComponentType().Bit);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 32; i++)
+                {
+                    Assert.AreEqual(BigInteger.One << i, new ComponentType().Bit);
+                }
+            }
+
+            // If ComponentType.Bit property is compiled as Int32,
+            // next (33rd) ComponentType instance will get invalid (overflown) Bit value.
+            // Should get exception instead of silent overflow.
+
+            bool thrown = false;
+
+            try
+            {
+                var badCtype = new ComponentType();
+            }
+            catch (InvalidOperationException)
+            {
+                thrown = true;
+            }
+
+            if (int32Used)
+            {
+                Assert.IsTrue(thrown, "33rd ComponentType constructor should fail when Int32 bit type is used");
+            }
+            else
+            {
+                Assert.IsFalse(thrown, "33rd ComponentType constructor should not fail when BigInteger bit type is used");
+            }
+        }
+
+    /// <summary>Tests EntitySystem SystemBits.</summary>
+#if MONO
+    [Test]
+#else
+    [TestMethod]
+#endif
+        public void TestEntitySystemSystemBit()
+        {
+            bool int32Used = typeof(SystemBitManager).GetMethod("GetBitFor").ReturnType == typeof (global::System.Int32);
+            var systemBitManager = new SystemBitManager();
+
+            if (int32Used)
+            {
+                for (int i = 0; i < 32; i++)
+                {
+                    Assert.AreEqual(1 << i, systemBitManager.GetBitFor(new TestEntityProcessingSystem()));
+                }
+            }
+            else
+            {
+                for (int i = 0; i < 32; i++)
+                {
+                    Assert.AreEqual(BigInteger.One << i, systemBitManager.GetBitFor(new TestEntityProcessingSystem()));
+                }
+            }
+            
+            // If SystemBitManager is compiled with Int32 bit type,
+            // next (33rd) EntitySystem instance will get invalid (overflown) SystemBit value.
+            // Should get exception instead of silent overflow.
+
+            bool thrown = false;
+
+            try
+            {
+                systemBitManager.GetBitFor(new TestEntityProcessingSystem());
+            }
+            catch (InvalidOperationException)
+            {
+                thrown = true;
+            }
+
+            if (int32Used)
+            {
+                Assert.IsTrue(thrown, "Getting SystemBit for 33rd EntitySystem instance should fail when Int32 bit type is used");
+            }
+            else
+            {
+                Assert.IsFalse(thrown, "Getting SystemBit for 33rd EntitySystem instance should not fail when BigInteger bit type is used");
+            }
         }
     }
 }

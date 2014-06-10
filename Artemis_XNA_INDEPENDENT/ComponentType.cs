@@ -39,7 +39,11 @@ namespace Artemis
     #region Using statements
 
     using global::System;
+<<<<<<< HEAD
     using global::System.Collections.Generic;
+=======
+    using global::System.Diagnostics;
+>>>>>>> origin/master
 #if XBOX || WINDOWS_PHONE || PORTABLE || FORCEINT32
     using BigInteger = global::System.Int32;
 #else
@@ -51,13 +55,46 @@ namespace Artemis
     #endregion Using statements
 
     /// <summary>Represents a Component Type.</summary>
+    [DebuggerDisplay("Id:{Id}, Bit:{Bit}")]
     public sealed class ComponentType 
     {
+<<<<<<< HEAD
+=======
+        /// <summary>The bit next instance of the <see cref="ComponentType"/> class will get.</summary>
+        private static BigInteger nextBit;
+
+        /// <summary>The id next instance of the <see cref="ComponentType"/> class will get.</summary>
+        private static int nextId;
+
+        /// <summary>Initializes static members of the <see cref="ComponentType"/> class.</summary>
+        static ComponentType()
+        {
+            nextBit = 1;
+            nextId = 0;
+        }
+
+>>>>>>> origin/master
         /// <summary>Initializes a new instance of the <see cref="ComponentType"/> class.</summary>
         internal ComponentType(int id, BigInteger bit)
         {
+<<<<<<< HEAD
             this.Id = id;
             this.Bit = bit;
+=======
+#if XBOX || WINDOWS_PHONE || PORTABLE || FORCEINT32
+            if (nextId == 32)
+            {
+                // nextBit has overflown and is 0 now
+                throw new InvalidOperationException("Distinct ComponentType limit reached: number of ComponentType types is restricted to 32 in the current Artemis build.");
+            }
+#endif
+
+            this.Id = nextId;
+            this.Bit = nextBit;
+
+            nextId++;
+            nextBit <<= 1;
+>>>>>>> origin/master
         }
 
         /// <summary>Gets the bit index that represents this type of component.</summary>
@@ -67,6 +104,7 @@ namespace Artemis
         /// <summary>Gets the bit that represents this type of component.</summary>
         /// <value>The bit.</value>
         public BigInteger Bit { get; private set; }
+<<<<<<< HEAD
 
         internal static ComponentType OfType(global::System.Type type)
         {
@@ -77,6 +115,9 @@ namespace Artemis
         {
             return ComponentTypeCache<T>.CType;
         }
+=======
+    }
+>>>>>>> origin/master
 
         internal static IEnumerable<Type> GetTypesFromBits(BigInteger bits)
         {
