@@ -1066,27 +1066,32 @@ namespace UnitTests
         public void TestComponentTypeBit()
         {
             bool int32Used = typeof(ComponentType).GetProperty("Bit").PropertyType == typeof(global::System.Int32);
+            FieldInfo componentTypes = typeof(ComponentTypeManager).GetField("ComponentTypes", BindingFlags.Static | BindingFlags.NonPublic);
+            Action resetComponentTypes = () => componentTypes.SetValue(null, new Dictionary<Type, ComponentType>());
 
             // Ugly resetting of private static fields in case the type has already been initialized and used
-            typeof(ComponentType).GetField("nextId", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, 0);
+            typeof(ComponentTypeManager).GetField("NextAvailableId", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, 0);
+            resetComponentTypes();
 
             if (int32Used)
-                typeof(ComponentType).GetField("nextBit", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, 1);
+                typeof(ComponentTypeManager).GetField("NextAvailableBit", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, 1);
             else
-                typeof(ComponentType).GetField("nextBit", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, (BigInteger)1);
+                typeof(ComponentTypeManager).GetField("NextAvailableBit", BindingFlags.Static | BindingFlags.NonPublic).SetValue(null, (BigInteger)1);
 
             if (int32Used)
             {
                 for (int i = 0; i < 32; i++)
                 {
-                    Assert.AreEqual(1 << i, new ComponentType().Bit);
+                    Assert.AreEqual(1 << i, ComponentTypeManager.GetTypeFor(typeof(Object)).Bit);
+                    resetComponentTypes();
                 }
             }
             else
             {
                 for (int i = 0; i < 32; i++)
                 {
-                    Assert.AreEqual(BigInteger.One << i, new ComponentType().Bit);
+                    Assert.AreEqual(BigInteger.One << i, ComponentTypeManager.GetTypeFor(typeof(Object)).Bit);
+                    resetComponentTypes();
                 }
             }
 
@@ -1098,7 +1103,8 @@ namespace UnitTests
 
             try
             {
-                var badCtype = new ComponentType();
+                var badCtype = ComponentTypeManager.GetTypeFor(typeof(Object));
+                resetComponentTypes();
             }
             catch (InvalidOperationException)
             {
