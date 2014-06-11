@@ -34,6 +34,26 @@
 		}
 
 		/// <summary>
+		/// Adds the pooled component to the entity
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns>The component added</returns>
+		public T Add<T>() where T : ComponentPoolable
+		{
+			return this.AddComponentFromPool<T>();
+		}
+
+		/// <summary>
+		/// Adds the initialized pooled component to the entity
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="init"></param>
+		public void Add<T>(global::System.Action<T> init) where T : ComponentPoolable
+		{
+			this.AddComponentFromPool<T>(init);
+		}
+
+		/// <summary>
 		/// Returns whether the entity has a Component of the type specified.
 		/// </summary>
 		/// <typeparam name="T"></typeparam>

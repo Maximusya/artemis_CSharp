@@ -75,6 +75,7 @@
     <Compile Include="Entity.cs" />
     <Compile Include="EntityWorld.cs" />
     <Compile Include="Exceptions\MissingEntityTemplateException.cs" />
+    <Compile Include="Extensions\Aspect.cs" />
     <Compile Include="Extensions\Entity.cs" />
     <Compile Include="Interface\IComponent.cs" />
     <Compile Include="Interface\IComponentPool.cs" />
