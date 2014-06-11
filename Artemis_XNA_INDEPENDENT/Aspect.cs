@@ -55,7 +55,7 @@ namespace Artemis
     #endregion Using statements
 
     /// <summary>Specify a Filter class to filter what Entities (with what Components) a EntitySystem will Process.</summary>
-    public class Aspect
+    public partial class Aspect
     {
         /// <summary>Initializes a new instance of the <see cref="Aspect"/> class.</summary>
         protected Aspect()
