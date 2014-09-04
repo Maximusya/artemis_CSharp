@@ -122,8 +122,11 @@ namespace Artemis
                 for (int index = 0, j = entities.Count; index < j; ++index)
                 {
                     Entity entity = entities.Get(index);
-                    Bag<IComponent> components = entity.Components;
-                    currentState.Add(entity, components);
+                    if (entity != null)
+                    {
+                        Bag<IComponent> components = entity.Components;
+                        currentState.Add(entity, components);
+                    }
                 }
 
                 return currentState;
